@@ -16,6 +16,9 @@ const (
 	Beqz = 0x08
 )
 
+// RegularIncrement is the step value for all ops except halt
+const RegularIncrement = 3
+
 // Given a 256 byte array of "memory", run the stored program
 // to completion, modifying the data in place to reflect the result
 //
@@ -41,25 +44,25 @@ func compute(memory []byte) {
 			return
 		case Load:
 			destReg := memory[pc+1]
-			valAddr := memory[pc+2]
-			registers[destReg] = memory[valAddr]
-			registers[0] += 3
+			srcAddr := memory[pc+2]
+			registers[destReg] = memory[srcAddr]
+			registers[0] += RegularIncrement
 		case Store:
-			srcRegister := memory[pc+1]
-			srcVal := registers[srcRegister]
+			srcReg := memory[pc+1]
+			srcVal := registers[srcReg]
 			destAddr := memory[pc+2]
 			memory[destAddr] = srcVal
-			registers[0] += 3
+			registers[0] += RegularIncrement
 		case Add:
 			srcReg1 := memory[pc+1]
 			srcReg2 := memory[pc+2]
 			registers[srcReg1] = registers[srcReg1] + registers[srcReg2]
-			registers[0] += 3
+			registers[0] += RegularIncrement
 		case Sub:
 			srcReg1 := memory[pc+1]
 			srcReg2 := memory[pc+2]
 			registers[srcReg1] = registers[srcReg1] - registers[srcReg2]
-			registers[0] += 3
+			registers[0] += RegularIncrement
 		}
 	}
 }
