@@ -69,58 +69,72 @@ var stretchGoalTests = []vmTest{
 	{
 		name: "Jump",
 		asm: `
-load r1 1
-jump 16
-store r1 0
-halt`,
+	load r1 1
+	jump 16
+	store r1 0
+	halt`,
 		cases: []vmCase{{42, 0, 0}},
 	},
 	// Support a "branch if equal to zero" with relative offsets
-	// 	{
-	// 		name: "Beqz",
-	// 		asm: `
-	// load r1 1
-	// load r2 2
-	// beqz r2 3
-	// store r1 0
-	// halt`,
-	// 		cases: []vmCase{
-	// 			{42, 0, 0},  // r2 is zero, so should branch over the store
-	// 			{42, 1, 42}, // r2 is nonzero, so should store back 42
-	// 		},
-	// 	},
+	{
+		name: "Beqz",
+		asm: `
+	load r1 1
+	load r2 2
+	beqz r2 3
+	store r1 0
+	halt`,
+		cases: []vmCase{
+			{42, 0, 0},  // r2 is zero, so should branch over the store
+			{42, 1, 42}, // r2 is nonzero, so should store back 42
+		},
+	},
 	// Support adding immediate values
-	// 	{
-	// 		name: "Addi",
-	// 		asm: `
-	// load r1 1
-	// addi r1 3
-	// addi r1 5
-	// store r1 0
-	// halt`,
-	// 		cases: []vmCase{
-	// 			{0, 0, 8},   // 0 + 3 + 5 = 8
-	// 			{20, 0, 28}, // 20 + 3 + 5 = 8
-	// 		},
-	// 	},
+	{
+		name: "Addi",
+		asm: `
+	load r1 1
+	addi r1 3
+	addi r1 5
+	store r1 0
+	halt`,
+		cases: []vmCase{
+			{0, 0, 8},   // 0 + 3 + 5 = 8
+			{20, 0, 28}, // 20 + 3 + 5 = 8
+		},
+	},
+	// Support subtracting immediate values
+	{
+		name: "Subi",
+		asm: `
+	load r1 1
+	subi r1 3
+	subi r1 5
+	store r1 0
+	halt`,
+		cases: []vmCase{
+			{10, 0, 2},  // 0 + 3 + 5 = 8
+			{0, 1, 248}, // correctly overflow backwards
+		},
+	},
 	// Calculate the sum of first n numbers (using subi to decrement loop index)
-	// 	{
-	// 		name: "Sum to n",
-	// 		asm: `
-	// load r1 1
-	// beqz r1 8
-	// add r2 r1
-	// subi r1 1
-	// jump 11
-	// store r2 0
-	// halt`,
-	// 		cases: []vmCase{
-	// 			{0, 0, 0},
-	// 			{1, 0, 1},
-	// 			{5, 0, 15},
-	// 			{10, 0, 55},
-	// 		},
-	// 	},
+	{
+		name: "Sum to n",
+		asm: `
+	load r1 1
+	beqz r1 8
+	add r2 r1
+	subi r1 1
+	jump 11
+	store r2 0
+	halt`,
+		cases: []vmCase{
+			{0, 0, 0},
+			{1, 0, 1},
+			{5, 0, 15},
+			{10, 0, 55},
+		},
+	},
 }
 
 func TestCompute(t *testing.T) {

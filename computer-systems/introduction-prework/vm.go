@@ -16,8 +16,7 @@ const (
 	Beqz = 0x08
 )
 
-// RegularIncrement is the step value for all ops except halt
-const RegularIncrement = 3
+const regularIncrement = 3
 
 // Given a 256 byte array of "memory", run the stored program
 // to completion, modifying the data in place to reflect the result
@@ -46,23 +45,44 @@ func compute(memory []byte) {
 			destReg := memory[pc+1]
 			srcAddr := memory[pc+2]
 			registers[destReg] = memory[srcAddr]
-			registers[0] += RegularIncrement
+			registers[0] += regularIncrement
 		case Store:
 			srcReg := memory[pc+1]
 			srcVal := registers[srcReg]
 			destAddr := memory[pc+2]
 			memory[destAddr] = srcVal
-			registers[0] += RegularIncrement
+			registers[0] += regularIncrement
 		case Add:
 			srcReg1 := memory[pc+1]
 			srcReg2 := memory[pc+2]
 			registers[srcReg1] = registers[srcReg1] + registers[srcReg2]
-			registers[0] += RegularIncrement
+			registers[0] += regularIncrement
 		case Sub:
 			srcReg1 := memory[pc+1]
 			srcReg2 := memory[pc+2]
 			registers[srcReg1] = registers[srcReg1] - registers[srcReg2]
-			registers[0] += RegularIncrement
+			registers[0] += regularIncrement
+		case Addi:
+			srcReg := memory[pc+1]
+			increment := memory[pc+2]
+			registers[srcReg] = registers[srcReg] + increment
+			registers[0] += regularIncrement
+		case Subi:
+			srcReg := memory[pc+1]
+			increment := memory[pc+2]
+			registers[srcReg] = registers[srcReg] - increment
+			registers[0] += regularIncrement
+		case Jump:
+			amount := memory[pc+1]
+			registers[0] = amount
+		case Beqz:
+			srcReg := memory[pc+1]
+			regVal := registers[srcReg]
+			relOffset := memory[pc+2]
+			if regVal == 0 {
+				registers[0] += relOffset
+			}
+			registers[0] += regularIncrement
 		}
 	}
 }
