@@ -2,15 +2,13 @@
 	global sum_to_n
 
 sum_to_n:
-	mov rax, 0
-	mov r8, 0
-	cmp rdi, 0
-	je .done
-.loop:
-	inc r8
-	add rax, r8
+	xor rax, rax
 
-	cmp r8, rdi
-	jl .loop
-.done:
-	ret
+.loop:
+	add rax, rdi
+	dec rdi
+	cmp rdi, 0
+	jg .loop
+
+.exit:
+ret
