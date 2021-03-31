@@ -11,4 +11,4 @@ sum_to_n:
 	jg .loop
 
 .exit:
-ret
+	ret
