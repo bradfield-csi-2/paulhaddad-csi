@@ -13,7 +13,6 @@ dec rdi
 call fib
 mov r12, rax            ; store result of calling fib with n-1
 
-
 lea rdi, [rbx-2]        ; calculate n-2
 call fib
 add rax, r12            ; add fib(n-1) + fib(n-2)
