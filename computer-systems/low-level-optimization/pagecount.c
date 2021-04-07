@@ -41,7 +41,7 @@ int main (int argc, char** argv) {
   clocks_elapsed = test_end - test_start - (baseline_end - baseline_start);
   time_elapsed = clocks_elapsed / CLOCKS_PER_SEC;
 
-  printf("%.2fs to run %d tests (%.2fns per test)\n", time_elapsed, TEST_LOOPS,
+  printf("%.4fs to run %d tests (%.2fns per test)\n", time_elapsed, TEST_LOOPS,
          time_elapsed * 1e9 / TEST_LOOPS);
   return ignore;
 }
