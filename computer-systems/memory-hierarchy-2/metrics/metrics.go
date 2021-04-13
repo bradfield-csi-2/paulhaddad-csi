@@ -3,6 +3,7 @@ package metrics
 import (
 	"encoding/csv"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -33,22 +34,34 @@ type User struct {
 	payments []Payment
 }
 
-func AverageAge(userAges []uint32) float64 {
-	count := 0
-	var sum uint32 = 0
-	for _, age := range userAges {
-		count++
-		sum += age
+func AverageAge(userAges []float64) float64 {
+	i := 0
+	numUsers := len(userAges)
+	var sum1 float64 = 0.0
+	var sum2 float64 = 0.0
+	var sum3 float64 = 0.0
+	var sum4 float64 = 0.0
+
+	for ; i < numUsers-4; i += 4 {
+		sum1 += userAges[i]
+		sum2 += userAges[i+1]
+		sum3 += userAges[i+2]
+		sum4 += userAges[i+3]
 	}
 
-	return float64(sum) / float64(count)
+	for ; i < numUsers; i++ {
+		sum1 += userAges[i]
+	}
+
+	return (sum1 + sum2 + sum3 + sum4) / float64(numUsers)
 }
 
-func AveragePaymentAmount(payments []DollarAmount) float64 {
+// Add loop unrolling
+func AveragePaymentAmount(userPayments []DollarAmount) float64 {
 	count := 0.0
 	var dollars uint64 = 0
 	var cents uint64 = 0
-	for _, p := range payments {
+	for _, p := range userPayments {
 		count++
 		dollars += p.dollars
 		cents += p.cents
@@ -58,21 +71,19 @@ func AveragePaymentAmount(payments []DollarAmount) float64 {
 }
 
 // Compute the standard deviation of payment amounts
-// func StdDevPaymentAmount(users UserMap) float64 {
-// 	mean := AveragePaymentAmount(users)
-// 	squaredDiffs, count := 0.0, 0.0
-// 	for _, u := range users {
-// 		for _, p := range u.payments {
-// 			count += 1
-// 			amount := float64(p.amount.dollars) + float64(p.amount.cents)/100
-// 			diff := amount - mean
-// 			squaredDiffs += diff * diff
-// 		}
-// 	}
-// 	return math.Sqrt(squaredDiffs / count)
-// }
+func StdDevPaymentAmount(userPayments []DollarAmount) float64 {
+	mean := AveragePaymentAmount(userPayments)
+	squaredDiffs, count := 0.0, 0.0
+	for _, p := range userPayments {
+		count++
+		amount := float64(p.dollars) + float64(p.cents)/100
+		diff := amount - mean
+		squaredDiffs += diff * diff
+	}
+	return math.Sqrt(squaredDiffs / count)
+}
 
-func LoadData() (UserMap, []uint32, []DollarAmount) {
+func LoadData() ([]float64, []DollarAmount) {
 	f, err := os.Open("users.csv")
 	if err != nil {
 		log.Fatalln("Unable to read users.csv", err)
@@ -84,7 +95,7 @@ func LoadData() (UserMap, []uint32, []DollarAmount) {
 	}
 
 	users := make(UserMap, len(userLines))
-	userAges := make([]uint32, len(userLines))
+	userAges := make([]float64, len(userLines))
 	for _, line := range userLines {
 		id, _ := strconv.Atoi(line[0])
 		name := line[1]
@@ -92,7 +103,7 @@ func LoadData() (UserMap, []uint32, []DollarAmount) {
 		address := line[3]
 		zip, _ := strconv.Atoi(line[3])
 		users[UserId(id)] = &User{UserId(id), name, age, Address{address, zip}, []Payment{}}
-		userAges[id] = uint32(age)
+		userAges[id] = float64(age)
 	}
 
 	f, err = os.Open("payments.csv")
@@ -117,5 +128,5 @@ func LoadData() (UserMap, []uint32, []DollarAmount) {
 		payments = append(payments, DollarAmount{uint64(paymentCents / 100), uint64(paymentCents % 100)})
 	}
 
-	return users, userAges, payments
+	return userAges, payments
 }
