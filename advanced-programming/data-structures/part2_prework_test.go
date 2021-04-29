@@ -38,10 +38,10 @@ func TestStringSameAddress(t *testing.T) {
 
 func TestSumOfSlice(t *testing.T) {
 	tests := []struct {
-		slice []int64
-		want  int64
+		slice []int
+		want  int
 	}{
-		{[]int64{1, 2, 3, 4, 5}, int64(15)},
+		{[]int{1, 2, 3, 4, 5}, int(15)},
 	}
 
 	for _, test := range tests {
@@ -53,26 +53,26 @@ func TestSumOfSlice(t *testing.T) {
 	}
 }
 
-func TestSumOfMap(t *testing.T) {
-	tests := []struct {
-		hash map[int]int
-		want [2]int
-	}{
-		{
-			map[int]int{1: 2, 2: 3, 4: 5},
-			[2]int{7, 10},
-		},
-		{
-			map[int]int{},
-			[2]int{0, 0},
-		},
-	}
-
-	for _, test := range tests {
-		got := SumOfMap(test.hash)
-
-		if got != test.want {
-			t.Errorf("got: %v; want: %v", got, test.want)
-		}
-	}
-}
+// func TestSumOfMap(t *testing.T) {
+// 	tests := []struct {
+// 		hash map[int]int
+// 		want [2]int
+// 	}{
+// 		{
+// 			map[int]int{1: 2, 2: 3, 4: 5},
+// 			[2]int{7, 10},
+// 		},
+// 		{
+// 			map[int]int{},
+// 			[2]int{0, 0},
+// 		},
+// 	}
+//
+// 	for _, test := range tests {
+// 		got := SumOfMap(test.hash)
+//
+// 		if got != test.want {
+// 			t.Errorf("got: %v; want: %v", got, test.want)
+// 		}
+// 	}
+// }
