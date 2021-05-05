@@ -18,11 +18,13 @@ type counter struct {
 var mutex sync.Mutex
 
 func (c *counter) getNext() uint64 {
+	mutex.Lock()
 	val := c.val
 	val++
 	c.val = val
+	mutex.Unlock()
 
-	return c.val
+	return val
 }
 
 func main() {
@@ -33,18 +35,14 @@ func main() {
 
 	go func() {
 		for i := 0; i < 100; i++ {
-			mutex.Lock()
 			counter.getNext()
-			mutex.Unlock()
 		}
 		wg.Done()
 	}()
 
 	go func() {
 		for i := 0; i < 100; i++ {
-			mutex.Lock()
 			counter.getNext()
-			mutex.Unlock()
 		}
 		wg.Done()
 	}()

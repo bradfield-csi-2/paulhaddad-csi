@@ -22,7 +22,7 @@ func (c *counter) getNext() uint64 {
 	fmt.Println() // this creates a system call that illustrates the problem with this code
 
 	c.val = val
-	return c.val
+	return val
 }
 
 func main() {
@@ -32,14 +32,14 @@ func main() {
 	counter := counter{0}
 
 	go func() {
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 1000; i++ {
 			fmt.Println("Function 1", counter.getNext())
 		}
 		wg.Done()
 	}()
 
 	go func() {
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 1000; i++ {
 			fmt.Println("Function 2", counter.getNext())
 		}
 		wg.Done()

@@ -20,7 +20,7 @@ func (c *counter) getNext() uint64 {
 	val++
 	c.val = val
 
-	return c.val
+	return val
 }
 
 func main() {
