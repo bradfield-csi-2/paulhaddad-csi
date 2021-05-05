@@ -7,9 +7,9 @@ import (
 
 func main() {
 	for i := 0; i < 10; i++ {
-		go func() {
-			fmt.Printf("launched goroutine %d\n", i)
-		}()
+		go func(n int) {
+			fmt.Printf("launched goroutine %d\n", n)
+		}(i)
 	}
 	// Wait for goroutines to finish
 	time.Sleep(time.Second)

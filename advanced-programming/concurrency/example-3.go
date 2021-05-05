@@ -14,8 +14,8 @@ func main() {
 	}
 	var wg sync.WaitGroup
 	for i := range urls {
+		wg.Add(1)
 		go func(i int) {
-			wg.Add(1)
 			// Decrement the counter when the goroutine completes.
 			defer wg.Done()
 

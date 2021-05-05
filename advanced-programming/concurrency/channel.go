@@ -15,12 +15,10 @@ type counter struct {
 	val uint64
 }
 
-func (c *counter) getNext() uint64 {
-	val := c.val
-	val++
+func (c *counter) getNext(reqCh chan bool, respCh chan uint64) {
+	reqCh <- true
+	val := <-respCh
 	c.val = val
-
-	return val
 }
 
 func main() {
@@ -36,14 +34,12 @@ func main() {
 		var count uint64
 
 		for {
-			done := <-reqCh
-			if done {
+			inc := <-reqCh
+			if !inc {
 				break
 			}
 
-			counter.getNext()
 			count++
-			fmt.Printf("The private counter value is: %d\n", count)
 			respCh <- count
 		}
 
@@ -51,13 +47,10 @@ func main() {
 	}()
 
 	for i := 0; i < 1000; i++ {
-
-		reqCh <- false
-		curVal := <-respCh
-		fmt.Printf("The current value of the counter is: %d\n", curVal)
+		counter.getNext(reqCh, respCh)
 	}
 
-	reqCh <- true
+	reqCh <- false
 
 	wg.Wait()
 

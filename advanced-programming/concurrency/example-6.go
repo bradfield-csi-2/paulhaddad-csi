@@ -26,10 +26,10 @@ func (c *coordinator) logState() {
 
 func (c *coordinator) setLeader(leader string, shouldLog bool) {
 	c.lock.Lock()
-	defer c.lock.Unlock()
 
 	c.leader = leader
 
+	c.lock.Unlock()
 	if shouldLog {
 		c.logState()
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -11,14 +12,14 @@ const (
 )
 
 type counter struct {
-	count int
+	count int64
 }
 
 func safeIncrement(lock sync.Mutex, c *counter) {
 	lock.Lock()
 	defer lock.Unlock()
 
-	c.count += 1
+	atomic.AddInt64(&c.count, 1)
 }
 
 func main() {
