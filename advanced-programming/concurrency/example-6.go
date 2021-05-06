@@ -24,14 +24,18 @@ func (c *coordinator) logState() {
 	fmt.Printf("leader = %q\n", c.leader)
 }
 
+func (c *coordinator) logStateUnsafe() {
+	fmt.Printf("leader = %q\n", c.leader)
+}
+
 func (c *coordinator) setLeader(leader string, shouldLog bool) {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	c.leader = leader
 
-	c.lock.Unlock()
 	if shouldLog {
-		c.logState()
+		c.logStateUnsafe()
 	}
 }
 

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"sync"
+	"runtime"
 	"time"
 )
 
@@ -30,20 +30,22 @@ func query(endpoint string) string {
 // response (this approach increases the amount of traffic but
 // significantly improves "tail latency")
 func parallelQuery(endpoints []string) string {
-	var wg sync.WaitGroup
-
-	results := make(chan string)
+	results := make(chan string, 3)
 
 	for i := range endpoints {
-		wg.Add(1)
 		go func(i int) {
 			results <- query(endpoints[i])
-			wg.Done()
 		}(i)
 	}
 
-	wg.Wait()
 	return <-results
+}
+
+func printStats() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	fmt.Println("  Heap bytes used:", m.Alloc)
+	fmt.Println("  Num Goroutines: ", runtime.NumGoroutine())
 }
 
 func main() {
@@ -58,5 +60,7 @@ func main() {
 		fmt.Println(parallelQuery(endpoints))
 		delay := randomDelay(100)
 		time.Sleep(delay)
+
+		printStats()
 	}
 }
