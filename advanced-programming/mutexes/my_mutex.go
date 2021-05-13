@@ -11,53 +11,47 @@ type mutex struct {
 	val int64
 }
 
+var counter int
+
 func (m *mutex) Lock() {
 	for {
-		mutexVal := atomic.LoadInt64(&m.val)
-		if mutexVal == 0 {
-			atomic.StoreInt64(&m.val, 1)
+		if atomic.CompareAndSwapInt64(&m.val, 0, 1) {
 			return
 		}
 	}
 }
 
 func (m *mutex) Unlock() {
-	atomic.StoreInt64(&m.val, 0)
+	swapped := atomic.CompareAndSwapInt64(&m.val, 1, 0)
+	if swapped == false {
+		panic("tried to unlocked an unlocked mutex")
+	}
 }
 
-func main() {
-	var counter int
-	var mutex mutex
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-
-	go func() {
-		// Acquire mutex
-		mutex.Lock()
-
-		// do work
-		fmt.Printf("Goroutine 2: The mutex at address %p is acquired\n", &mutex)
-		time.Sleep(3 * time.Second)
-		counter++
-
-		// Release mutex
-		mutex.Unlock()
-		fmt.Println("Goroutine 2: The mutex is unlocked")
-		wg.Done()
-	}()
-
+func acqAndRelease(i int, m *mutex, wg *sync.WaitGroup) {
 	// Acquire mutex
-	mutex.Lock()
+	m.Lock()
+	fmt.Printf("Goroutine %d: The mutex at address %p is acquired\n", i, &m)
 
 	// do work
-	fmt.Printf("Goroutine 1: The mutex at address %p is acquired\n", &mutex)
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 	counter++
 
 	// Release mutex
-	mutex.Unlock()
-	fmt.Println("Goroutine 1: The mutex is unlocked")
+	m.Unlock()
+	fmt.Printf("Goroutine %d: The mutex is unlocked\n", i)
+
+	wg.Done()
+}
+
+func main() {
+	var wg sync.WaitGroup
+	var mutex mutex
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go acqAndRelease(i, &mutex, &wg)
+	}
 
 	wg.Wait()
 
