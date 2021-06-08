@@ -1,11 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"log"
 	"os"
+	"sort"
 )
 
 const (
@@ -32,12 +33,10 @@ func main() {
 		log.Fatal("pcap global header not correct length")
 	}
 
-	fmt.Printf("pcap global header: %x\n", globalHeader)
-
 	// Handle packets
 	var packetNum int
 	var firstEtherType uint16
-	httpData := make(map[uint32][]byte)
+	httpData := make(map[int][]byte)
 	for {
 		packetHeader = make([]byte, 16)
 		count, err := file.Read(packetHeader)
@@ -140,7 +139,6 @@ func main() {
 		dataOffset := uint16(tcpHeader[12] >> 4)
 
 		seqNum := binary.BigEndian.Uint32(tcpHeader[4:8])
-		fmt.Printf("Sequence Number: %d\n", seqNum)
 
 		// dataSectionLen := totalIPLength - 20 - dataOffset*4
 		// fmt.Printf("Packet Length: %d; IP Length: %d; Data Offset: %d; Data Section Length: %d\n", packetLength, totalIPLength, dataOffset, dataSectionLen)
@@ -161,11 +159,37 @@ func main() {
 
 		if sourcePort == 80 {
 			// fmt.Printf("Packet %d Data: %x\n", packetNum, packetData)
-			httpData[seqNum] = packetData
+			httpData[int(seqNum)] = packetData
 		}
 
 		packetNum++
 	}
 
-	fmt.Println(httpData)
+	var seqNums []int
+
+	for k := range httpData {
+		seqNums = append(seqNums, k)
+	}
+
+	sort.Ints(seqNums)
+
+	var b bytes.Buffer
+
+	for _, num := range seqNums {
+		data := httpData[num]
+		b.Write(data)
+	}
+
+	binaryString := b.Bytes()
+
+	httpComponents := bytes.Split(binaryString, []byte{13, 10})
+
+	httpBody := httpComponents[len(httpComponents)-1]
+
+	f, err := os.Create("image.jpg")
+	if err != nil {
+		log.Fatal("error creating file")
+	}
+
+	f.Write(httpBody)
 }
