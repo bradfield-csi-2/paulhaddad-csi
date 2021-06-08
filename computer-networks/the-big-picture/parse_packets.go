@@ -3,176 +3,135 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
-	"log"
 	"os"
 	"sort"
 )
 
 const (
-	IPv4EtherType uint16 = 0x0008
-	IPv6EtherType uint16 = 0xDD86
+	globalHeaderLength            = 24
+	ipV4EtherType          uint16 = 0x0008
+	ipV6EtherType          uint16 = 0xDD86
+	ipHeaderLength                = 20
+	pcapGlobalHeaderLength        = 24
+	packetHeaderLength            = 16
+	ethernetHeaderLength          = 14
 )
 
-func main() {
-	var globalHeader, packetHeader []byte
+func parsePcapGlobalHeader(f *os.File) error {
+	globalHeader := make([]byte, pcapGlobalHeaderLength)
+	globalCount, err := f.Read(globalHeader)
 
-	file, err := os.Open("net.cap")
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("error reading global header")
 	}
 
-	// Read in pcap global header
-	globalHeader = make([]byte, 24)
-	globalCount, err := file.Read(globalHeader)
+	if globalCount != globalHeaderLength {
+		return fmt.Errorf("pcap global header not correct length")
+	}
+
+	return nil
+}
+
+func parsePacketHeader(f *os.File) (uint16, error) {
+	packetHeader := make([]byte, packetHeaderLength)
+
+	count, err := f.Read(packetHeader)
+	if err == io.EOF {
+		return 0, err
+	}
+
 	if err != nil {
-		log.Fatal(err)
+		return 0, fmt.Errorf("error parsing packet header")
 	}
 
-	if globalCount != 24 {
-		log.Fatal("pcap global header not correct length")
+	if count != packetHeaderLength {
+		return 0, fmt.Errorf("packet header not correct length")
 	}
 
-	// Handle packets
-	var packetNum int
-	var firstEtherType uint16
-	httpData := make(map[int][]byte)
-	for {
-		packetHeader = make([]byte, 16)
-		count, err := file.Read(packetHeader)
-		if err == io.EOF {
-			break
-		}
+	packetLength := binary.LittleEndian.Uint16(packetHeader[8:11])
+	untruncatedPacketLength := binary.LittleEndian.Uint16(packetHeader[12:15])
 
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if count != 16 {
-			log.Fatal("packet header not correct length")
-		}
-
-		packetLength := binary.LittleEndian.Uint16(packetHeader[8:11])
-		untruncatedPacketLength := binary.LittleEndian.Uint16(packetHeader[12:15])
-
-		if packetLength != untruncatedPacketLength {
-			log.Fatal("packet is truncated")
-		}
-
-		// Parse Ethernet Headers
-
-		// MAC addresses
-		macDestination := make([]byte, 6)
-		count, err = file.Read(macDestination)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		macSource := make([]byte, 6)
-		count, err = file.Read(macSource)
-		if err != nil {
-			log.Fatal(err)
-		}
-		// fmt.Printf("MAC Source/Destination addresses: %x %x\n", macSource, macDestination)
-
-		// EtherType field
-		etherTypeData := make([]byte, 2)
-		count, err = file.Read(etherTypeData)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		etherType := binary.LittleEndian.Uint16(etherTypeData)
-
-		// make sure it's IPv4 or IPv6
-		if etherType != IPv4EtherType && etherType != IPv6EtherType {
-			log.Fatal("The IP datagram must be IPv4 or IPv6")
-		}
-
-		if packetNum == 0 {
-			firstEtherType = etherType
-		}
-
-		if packetNum > 0 && etherType != firstEtherType {
-			log.Fatal("Not all IP Datagrams have the same format")
-		}
-
-		// IP Packet
-
-		// Internet Header Length (IHL)
-		iPHeader := make([]byte, 20)
-		count, err = file.Read(iPHeader)
-		if err != nil {
-			log.Fatal("Error reading IP header")
-		}
-
-		// fmt.Printf("Internet Header Length: %x\n", iPHeader[0]&15)
-
-		// Total IP Length
-		// totalIPLength := binary.BigEndian.Uint16(iPHeader[2:4])
-		// fmt.Printf("IP Length: %d\n", totalIPLength)
-
-		// Source IP Address
-		// sourceIPAddr := binary.BigEndian.Uint32(iPHeader[12:16])
-		// fmt.Printf("Source IP Address: %x\n", sourceIPAddr)
-
-		// Destination IP Address
-		// destinationIPAddr := binary.BigEndian.Uint32(iPHeader[16:20])
-		// fmt.Printf("Destination IP Address: %x\n", destinationIPAddr)
-
-		// Protocol
-		// iPProtocol := iPHeader[9]
-		// fmt.Printf("Transport Protocol: %x\n", iPProtocol)
-
-		// Transport Packet
-
-		tcpHeader := make([]byte, 20)
-		count, err = file.Read(tcpHeader)
-		if err != nil {
-			log.Fatal("Error reading TCP header")
-		}
-
-		sourcePort := binary.BigEndian.Uint16(tcpHeader[0:2])
-		// destPort := binary.BigEndian.Uint16(tcpHeader[2:4])
-		// fmt.Printf("Source Port: %d %d\n", sourcePort, destPort)
-
-		dataOffset := uint16(tcpHeader[12] >> 4)
-
-		seqNum := binary.BigEndian.Uint32(tcpHeader[4:8])
-
-		// dataSectionLen := totalIPLength - 20 - dataOffset*4
-		// fmt.Printf("Packet Length: %d; IP Length: %d; Data Offset: %d; Data Section Length: %d\n", packetLength, totalIPLength, dataOffset, dataSectionLen)
-
-		// read remaining part of IP Header
-		ipOptions := make([]byte, dataOffset*4-20)
-		count, err = file.Read(ipOptions)
-		if err != nil {
-			log.Fatal("Error reading IP Options")
-		}
-
-		// Parse rest of packet
-		packetData := make([]byte, packetLength-6-6-2-20-dataOffset*4)
-		count, err = file.Read(packetData)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if sourcePort == 80 {
-			// fmt.Printf("Packet %d Data: %x\n", packetNum, packetData)
-			httpData[int(seqNum)] = packetData
-		}
-
-		packetNum++
+	if packetLength != untruncatedPacketLength {
+		return 0, fmt.Errorf("packet is truncated")
 	}
 
+	return packetLength, nil
+}
+
+func parseEthernetHeader(f *os.File) (uint16, error) {
+	macDestination := make([]byte, 6)
+
+	_, err := f.Read(macDestination)
+	if err != nil {
+		return 0, fmt.Errorf("error reading mac destination address")
+	}
+
+	macSource := make([]byte, 6)
+	_, err = f.Read(macSource)
+	if err != nil {
+		return 0, fmt.Errorf("error reading mac source address")
+	}
+
+	etherTypeData := make([]byte, 2)
+	_, err = f.Read(etherTypeData)
+	if err != nil {
+		return 0, fmt.Errorf("error reading EtherType field")
+	}
+
+	etherType := binary.LittleEndian.Uint16(etherTypeData)
+
+	if etherType != ipV4EtherType && etherType != ipV6EtherType {
+		return 0, fmt.Errorf("the IP datagram must be IPv4 or IPv6")
+	}
+
+	return etherType, nil
+}
+
+func parseIPHeader(f *os.File) error {
+	ipHeader := make([]byte, ipHeaderLength)
+
+	_, err := f.Read(ipHeader)
+	if err != nil {
+		return fmt.Errorf("error reading IP header")
+	}
+
+	return nil
+}
+
+func parseTCPHeader(f *os.File) (uint16, uint32, uint16, error) {
+	tcpHeader := make([]byte, 20)
+	_, err := f.Read(tcpHeader)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("Error reading TCP header")
+	}
+
+	sourcePort := binary.BigEndian.Uint16(tcpHeader[0:2])
+	dataOffset := uint16(tcpHeader[12] >> 4)
+	seqNum := binary.BigEndian.Uint32(tcpHeader[4:8])
+
+	ipOptions := make([]byte, dataOffset*4-ipHeaderLength)
+	_, err = f.Read(ipOptions)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("Error reading IP Options")
+	}
+
+	return sourcePort, seqNum, dataOffset, nil
+}
+
+func sortSeqNums(httpData map[int][]byte) []int {
 	var seqNums []int
 
 	for k := range httpData {
 		seqNums = append(seqNums, k)
 	}
-
 	sort.Ints(seqNums)
 
+	return seqNums
+}
+
+func writeHTTPData(seqNums []int, httpData map[int][]byte) error {
 	var b bytes.Buffer
 
 	for _, num := range seqNums {
@@ -181,15 +140,94 @@ func main() {
 	}
 
 	binaryString := b.Bytes()
-
 	httpComponents := bytes.Split(binaryString, []byte{13, 10})
-
 	httpBody := httpComponents[len(httpComponents)-1]
 
 	f, err := os.Create("image.jpg")
 	if err != nil {
-		log.Fatal("error creating file")
+		return fmt.Errorf("error creating file")
 	}
 
-	f.Write(httpBody)
+	_, err = f.Write(httpBody)
+	if err != nil {
+		return fmt.Errorf("error writing to file")
+	}
+
+	return nil
+}
+
+func parsePackets(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+
+	parsePcapGlobalHeader(file)
+
+	var packetNum int
+	var firstEtherType uint16
+	httpData := make(map[int][]byte)
+
+	for {
+		packetLength, err := parsePacketHeader(file)
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+
+		etherType, err := parseEthernetHeader(file)
+		if err != nil {
+			break
+		}
+
+		if packetNum == 0 {
+			firstEtherType = etherType
+		}
+
+		if packetNum > 0 && etherType != firstEtherType {
+			break
+		}
+
+		err = parseIPHeader(file)
+		if err != nil {
+			break
+		}
+
+		sourcePort, seqNum, dataOffset, err := parseTCPHeader(file)
+		if err != nil {
+			break
+		}
+
+		packetData := make([]byte, packetLength-ethernetHeaderLength-ipHeaderLength-dataOffset*4)
+		_, err = file.Read(packetData)
+		if err != nil {
+			break
+		}
+
+		if sourcePort == 80 {
+			httpData[int(seqNum)] = packetData
+		}
+
+		packetNum++
+	}
+
+	seqNums := sortSeqNums(httpData)
+
+	err = writeHTTPData(seqNums, httpData)
+	if err != nil {
+		return fmt.Errorf("error writing http data to file")
+	}
+
+	return nil
+}
+
+func main() {
+	err := parsePackets("net.cap")
+
+	if err != nil {
+		fmt.Printf("error: %s", err)
+	}
 }
