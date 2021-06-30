@@ -8,15 +8,15 @@ import (
 )
 
 func main() {
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
+	sender, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, 0)
 	if err != nil {
-		fmt.Printf("error opening socket: %s\n", err)
+		fmt.Printf("error opening sender socket: %s\n", err)
 		os.Exit(1)
 	}
 
-	err = syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_TTL, 1)
+	receiver, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
 	if err != nil {
-		fmt.Printf("error socket option: %s\n", err)
+		fmt.Printf("error opening receiver socket: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -26,61 +26,72 @@ func main() {
 	// 	os.Exit(1)
 	// }
 
-	// hardcoding google's IP in for now
-	host := [4]byte{172, 67, 200, 47}
+	// hardcoding bradfield's IP in for now
+	host := [4]byte{104, 21, 76, 199}
 
-	// encode message
-	msg := make([]byte, 10)
-	binary.BigEndian.PutUint16(msg[0:], 0x0800)
-	binary.BigEndian.PutUint16(msg[2:], 0xe7ff)
-	binary.BigEndian.PutUint16(msg[4:], 0x1000) // Identifier Num
-	binary.BigEndian.PutUint16(msg[6:], 0x0000) // Sequence Num
-	binary.BigEndian.PutUint16(msg[8:], 0x0000) // add arbitrary data
+	var idenNum uint16 = 1
+	var seqNum uint16 = 9
+	port := 33434
 
-	sockAddr := syscall.SockaddrInet4{Addr: host}
-	err = syscall.Sendto(fd, msg, 0, &sockAddr)
-	if err != nil {
-		fmt.Printf("error sending: %s\n", err)
-		os.Exit(1)
+	for {
+		fmt.Printf("Sending hop: %d\n", seqNum)
+		err = syscall.SetsockoptInt(sender, syscall.IPPROTO_IP, syscall.IP_TTL, int(seqNum))
+		if err != nil {
+			fmt.Printf("error socket option: %s\n", err)
+			os.Exit(1)
+		}
+
+		sockAddr := syscall.SockaddrInet4{Addr: host, Port: port}
+		reqMsg := make([]byte, 24)
+		err = syscall.Sendto(sender, reqMsg, 0, &sockAddr)
+		if err != nil {
+			fmt.Printf("error sending: %s\n", err)
+			os.Exit(1)
+		}
+
+		resp := make([]byte, 1024)
+		_, _, err = syscall.Recvfrom(receiver, resp, 0)
+		if err != nil {
+			fmt.Printf("error receiving: %s\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Header: % x\n", resp[0:20])
+		headerLen := uint16(resp[0] & 0b00001111 * 4)
+		ipLength := binary.LittleEndian.Uint16(resp[2:4])
+		totalIPLen := headerLen + ipLength
+
+		ipPacket := resp[0:totalIPLen]
+		fmt.Printf("IP Packet: %x\n", ipPacket)
+
+		sourceIP := ipPacket[12:16]
+		fmt.Printf("Source IP: %d.%d.%d.%d\n", sourceIP[0], sourceIP[1], sourceIP[2], sourceIP[3])
+
+		icmpFrame := ipPacket[headerLen:]
+		icmpType := icmpFrame[0]
+		icmpCode := icmpFrame[1]
+
+		fmt.Printf("Type: %d; Code: %d\n", icmpType, icmpCode)
+
+		origReq := icmpFrame[8:]
+		intIPheaderLen := uint16(origReq[0] & 0b00001111 * 4)
+		intIPLength := binary.LittleEndian.Uint16(origReq[2:4])
+
+		fmt.Printf("Header Length: %d ICMP Data Length: %d\n", intIPheaderLen, intIPLength)
+
+		icmpErrMsg := origReq[intIPheaderLen : intIPheaderLen+intIPLength]
+		fmt.Printf("ICMP Error Message: % x\n", icmpErrMsg)
+
+		respIdenNum := binary.BigEndian.Uint16(icmpErrMsg[4:6])
+		respSeqNum := binary.BigEndian.Uint16(icmpErrMsg[6:8])
+		fmt.Printf("Identification: %d Response Identifier: %d\n", idenNum, respIdenNum)
+		fmt.Printf("Seq Num: %d Response Sequence Num: %d\n", seqNum, respSeqNum)
+
+		if icmpType == 3 {
+			break
+		}
+
+		seqNum++
+		port++
 	}
-
-	resp := make([]byte, 1024)
-	_, _, err = syscall.Recvfrom(fd, resp, 0)
-	if err != nil {
-		fmt.Printf("error receiving: %s\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Header: % x\n", resp[0:20])
-	headerLen := uint16(resp[0] & 0b00001111 * 4)
-	ipLength := binary.LittleEndian.Uint16(resp[2:4])
-	totalIPLen := headerLen + ipLength
-
-	ipPacket := resp[0:totalIPLen]
-	fmt.Printf("IP Packet: %x\n", ipPacket)
-
-	sourceIP := ipPacket[12:16]
-	fmt.Printf("Source IP: %d.%d.%d.%d\n", sourceIP[0], sourceIP[1], sourceIP[2], sourceIP[3])
-
-	icmpFrame := ipPacket[headerLen:]
-	icmpType := icmpFrame[0]
-	icmpCode := icmpFrame[1]
-
-	// assert type == 11 and code == 0
-	fmt.Printf("Type: %d; Code: %d\n", icmpType, icmpCode)
-
-	origReq := icmpFrame[8:]
-	intIPheaderLen := uint16(origReq[0] & 0b00001111 * 4)
-	intIPLength := binary.LittleEndian.Uint16(origReq[2:4])
-
-	fmt.Printf("Header Length: %d ICMP Data Length: %d\n", intIPheaderLen, intIPLength)
-
-	icmpErrMsg := origReq[intIPheaderLen : intIPheaderLen+intIPLength]
-	fmt.Printf("ICMP Error Message: % x\n", icmpErrMsg)
-
-	respIdenNum := icmpErrMsg[4:6]
-	respSeqNum := icmpErrMsg[6:8]
-
-	fmt.Printf("Response Identifier: %x\n", respIdenNum)
-	fmt.Printf("Response Sequence Num: %x\n", respSeqNum)
 }
