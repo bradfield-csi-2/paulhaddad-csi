@@ -96,24 +96,35 @@ func (o *skipListOC) Delete(key string) bool {
 	return false
 }
 
+// startKey and endKey are inclusive.
 func (o *skipListOC) RangeScan(startKey, endKey string) Iterator {
-	return &skipListOCIterator{}
+	node := o.head
+
+	for node != nil && node.item.Key < startKey {
+		node = node.next
+	}
+
+	return &skipListOCIterator{o, node, startKey, endKey}
 }
 
 type skipListOCIterator struct {
+	o                *skipListOC
+	node             *node
+	startKey, endKey string
 }
 
 func (iter *skipListOCIterator) Next() {
+	iter.node = iter.node.next
 }
 
 func (iter *skipListOCIterator) Valid() bool {
-	return false
+	return iter.node != nil && iter.node.item.Key <= iter.endKey
 }
 
 func (iter *skipListOCIterator) Key() string {
-	return ""
+	return iter.node.item.Key
 }
 
 func (iter *skipListOCIterator) Value() string {
-	return ""
+	return iter.node.item.Value
 }
