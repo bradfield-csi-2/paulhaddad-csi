@@ -21,12 +21,12 @@ func (o *skipListOC) Get(key string) (string, bool) {
 		return "", false
 	}
 
-	for curNode != nil {
-		if curNode.item.Key == key {
-			return curNode.item.Value, true
-		}
-
+	for curNode != nil && curNode.item.Key < key {
 		curNode = curNode.next
+	}
+
+	if curNode.item.Key == key {
+		return curNode.item.Value, true
 	}
 
 	return "", false
@@ -36,22 +36,36 @@ func (o *skipListOC) Get(key string) (string, bool) {
 // existing key had its value updated.
 func (o *skipListOC) Put(key, value string) bool {
 	curNode := o.head
+
 	if curNode == nil {
 		item := Item{key, value}
 		o.head = &node{item: item, next: nil}
 		return true
 	}
 
-	for curNode.next != nil {
-		if curNode.item.Key == key {
-			curNode.item.Value = value
-			return false
-		}
-		curNode = curNode.next
+	prevNode := curNode
+	curNode = curNode.next
+
+	for curNode != nil && curNode.item.Key < key {
+		prevNode, curNode = curNode, curNode.next
 	}
 
+	// add new node to end of list
+	if curNode == nil {
+		item := Item{key, value}
+		prevNode.next = &node{item: item, next: curNode}
+		return true
+	}
+
+	// updating existing key
+	if curNode.item.Key == key {
+		curNode.item.Value = value
+		return false
+	}
+
+	// create new key
 	item := Item{key, value}
-	curNode.next = &node{item: item, next: nil}
+	prevNode.next = &node{item: item, next: curNode}
 	return true
 }
 
@@ -64,18 +78,19 @@ func (o *skipListOC) Delete(key string) bool {
 	}
 
 	curNode := prevNode.next
+
 	if prevNode.item.Key == key {
 		o.head = curNode
 		return true
 	}
 
-	for curNode != nil {
-		if curNode.item.Key == key {
-			prevNode.next = curNode.next
-			return true
-		}
-		prevNode = curNode
-		curNode = curNode.next
+	for curNode != nil && curNode.item.Key < key {
+		prevNode, curNode = curNode, curNode.next
+	}
+
+	if curNode.item.Key == key {
+		prevNode.next = curNode.next
+		return true
 	}
 
 	return false
