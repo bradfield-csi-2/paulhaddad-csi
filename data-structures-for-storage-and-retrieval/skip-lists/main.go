@@ -75,26 +75,26 @@ func runTest(words []string, o OC, name string) {
 	fmt.Printf("%-20s", time.Since(start))
 
 	// RangeScan
-	start = time.Now()
-	prev := ""
-	count := 0
-	for iter := o.RangeScan(startKey, endKey); iter.Valid(); iter.Next() {
-		curr := iter.Key()
-		if curr < prev {
-			log.Fatalf("Iterator returned items out of order (%q came before %q)\n", prev, curr)
-		}
-		if !(startKey <= curr && curr <= endKey) {
-			log.Fatalf("Iterator returned item out of range [%q, %q]: %q\n", startKey, endKey, curr)
-		}
-		prev = curr
-		count++
-	}
-	if expectedRangeScanItems == -1 {
-		expectedRangeScanItems = count
-	} else if count != expectedRangeScanItems {
-		fmt.Println()
-		log.Fatalf("Inconsistent number of items from RangeScan: %d vs %d\n", expectedRangeScanItems, count)
-	}
+	// start = time.Now()
+	// prev := ""
+	// count := 0
+	// for iter := o.RangeScan(startKey, endKey); iter.Valid(); iter.Next() {
+	// 	curr := iter.Key()
+	// 	if curr < prev {
+	// 		log.Fatalf("Iterator returned items out of order (%q came before %q)\n", prev, curr)
+	// 	}
+	// 	if !(startKey <= curr && curr <= endKey) {
+	// 		log.Fatalf("Iterator returned item out of range [%q, %q]: %q\n", startKey, endKey, curr)
+	// 	}
+	// 	prev = curr
+	// 	count++
+	// }
+	// if expectedRangeScanItems == -1 {
+	// 	expectedRangeScanItems = count
+	// } else if count != expectedRangeScanItems {
+	// 	fmt.Println()
+	// 	log.Fatalf("Inconsistent number of items from RangeScan: %d vs %d\n", expectedRangeScanItems, count)
+	// }
 	fmt.Printf("%-20s\n", time.Since(start))
 }
 

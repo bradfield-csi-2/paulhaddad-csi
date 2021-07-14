@@ -21,7 +21,7 @@ type skipListOC struct {
 
 func newSkipListOC() *skipListOC {
 	header := &skipNode{
-		forward: make([]*skipNode, maxLevel),
+		forward: make([]*skipNode, maxLevel+1),
 	}
 	tail := &skipNode{
 		Item{"zzzzzzz", "zzzzzzzz"},
@@ -34,7 +34,7 @@ func newSkipListOC() *skipListOC {
 func (o *skipListOC) Get(key string) (string, bool) {
 	x := o.header
 
-	for i := o.level - 1; i >= 0; i-- {
+	for i := o.level; i >= 0; i-- {
 		for x.forward[i] != nil && x.forward[i].item.Key < key {
 			x = x.forward[i]
 		}
@@ -49,11 +49,10 @@ func (o *skipListOC) Get(key string) (string, bool) {
 }
 
 func (o *skipListOC) Put(key, value string) bool {
-	update := make([]*skipNode, maxLevel)
+	update := make([]*skipNode, maxLevel+1)
 	x := o.header
 
-	for i := o.level - 1; i >= 0; i-- {
-
+	for i := o.level; i >= 0; i-- {
 		for x.forward[i] != nil && x.forward[i].item.Key < key {
 			x = x.forward[i]
 		}
@@ -69,7 +68,7 @@ func (o *skipListOC) Put(key, value string) bool {
 
 	level := randLevel()
 	if level > o.level {
-		for i := o.level - 1; i <= level-1; i++ {
+		for i := o.level; i <= level; i++ {
 			update[i] = o.header
 		}
 
@@ -78,10 +77,10 @@ func (o *skipListOC) Put(key, value string) bool {
 
 	x = &skipNode{
 		Item{key, value},
-		make([]*skipNode, maxLevel),
+		make([]*skipNode, maxLevel+1),
 	}
 
-	for i := 0; i <= level-1; i++ {
+	for i := 0; i <= level; i++ {
 		x.forward[i] = update[i].forward[i]
 		update[i].forward[i] = x
 	}
@@ -90,10 +89,10 @@ func (o *skipListOC) Put(key, value string) bool {
 }
 
 func (o *skipListOC) Delete(key string) bool {
-	update := make([]*skipNode, maxLevel)
+	update := make([]*skipNode, maxLevel+1)
 	x := o.header
 
-	for i := o.level - 1; i >= 0; i-- {
+	for i := o.level; i >= 0; i-- {
 		for x.forward[i] != nil && x.forward[i].item.Key < key {
 			x = x.forward[i]
 		}
@@ -103,7 +102,16 @@ func (o *skipListOC) Delete(key string) bool {
 	x = x.forward[0]
 
 	if x.item.Key == key {
-		update[0].forward[0] = x.forward[0]
+		for i := 0; i <= o.level; i++ {
+			if update[i].forward[i] != x {
+				break
+			}
+			update[i].forward[i] = x.forward[i]
+
+			for o.level > 0 && o.header.forward[o.level] == nil {
+				o.level--
+			}
+		}
 		return true
 	}
 
@@ -114,7 +122,7 @@ func randLevel() int {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	level := 0
-	for r.Float32() < p && level < maxLevel-1 {
+	for r.Float32() < p && level < maxLevel {
 		level++
 	}
 
