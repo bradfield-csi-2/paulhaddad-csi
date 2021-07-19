@@ -35,7 +35,7 @@ func main() {
 
 	start := time.Now()
 
-	var b bloomFilter = newRealBloomFilter(uint64(512000), 2, fnv.New64)
+	var b bloomFilter = newRealBloomFilter(uint64(64000000), 10, fnv.New64)
 
 	// Add every other word (even indices)
 	for i := 0; i < len(words); i += 2 {
