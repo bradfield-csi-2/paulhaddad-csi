@@ -19,25 +19,27 @@ type bloomFilter interface {
 }
 
 type realBloomFilter struct {
-	m         uint64
 	data      []uint64
 	numHashes int
-	hashFn    func() hash.Hash64
+	hashFn    func() hash.Hash32
+	m         int
 }
 
-func newRealBloomFilter(m uint64, k int, fn func() hash.Hash64) *realBloomFilter {
+func newRealBloomFilter(size, k int, fn func() hash.Hash32) *realBloomFilter {
+	elements := size / 8
+
 	return &realBloomFilter{
-		m:         m,
-		data:      make([]uint64, m/64),
+		data:      make([]uint64, elements),
 		numHashes: k,
 		hashFn:    fn,
+		m:         elements * 64,
 	}
 }
 
 func (b *realBloomFilter) add(item string) {
 	for i := 0; i < b.numHashes; i++ {
 		block, offset := b.hashLocation(string(i) + item)
-		b.data[block] = offset | b.data[block]
+		b.data[block] |= uint64(offset)
 	}
 }
 
@@ -45,7 +47,7 @@ func (b *realBloomFilter) maybeContains(item string) bool {
 	// Technically, any item "might" be in the set
 	for i := 0; i < b.numHashes; i++ {
 		block, offset := b.hashLocation(string(i) + item)
-		if offset&b.data[block] == 0 {
+		if b.data[block]&uint64(offset) == 0 {
 			return false
 		}
 	}
@@ -53,16 +55,16 @@ func (b *realBloomFilter) maybeContains(item string) bool {
 	return true
 }
 
-func (b *realBloomFilter) hashLocation(key string) (uint64, uint64) {
+func (b *realBloomFilter) hashLocation(key string) (int, int) {
 	hash := b.hashFn()
 	hash.Write([]byte(key))
 	x, _ := binary.Uvarint(hash.Sum(nil))
-	x = x % (b.m / bits)
+	x = x % uint64(b.m)
 
-	block, index := x/bits, x%8
-	offset := uint64(1 << index)
+	block, index := x/64, x%64
+	offset := 1 << index
 
-	return block, offset
+	return int(block), int(offset)
 }
 
 func (b *realBloomFilter) memoryUsage() int {

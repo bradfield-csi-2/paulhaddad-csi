@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"hash/fnv"
 	"log"
 	"os"
 	"time"
@@ -35,14 +34,12 @@ func main() {
 
 	start := time.Now()
 
-	var b bloomFilter = newRealBloomFilter(100000, 5, fnv.New32)
+	b := newBasicBloomFilter(100000, 3)
 
 	// Add every other word (even indices)
 	for i := 0; i < len(words); i += 2 {
 		b.add(words[i])
 	}
-
-	fmt.Printf("% b", b)
 
 	// Make sure there are no false negatives
 	for i := 0; i < len(words); i += 2 {
