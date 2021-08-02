@@ -29,14 +29,23 @@ func (b *uncompressedBitmap) Set(x uint32) {
 }
 
 func (b *uncompressedBitmap) Union(other *uncompressedBitmap) *uncompressedBitmap {
-	var data []uint64
+	data := make([]uint64, math.MaxUint32/wordSize)
+
+	for i := range data {
+		data[i] = b.data[i] | other.data[i]
+	}
+
 	return &uncompressedBitmap{
 		data: data,
 	}
 }
 
 func (b *uncompressedBitmap) Intersect(other *uncompressedBitmap) *uncompressedBitmap {
-	var data []uint64
+	data := make([]uint64, math.MaxUint32/wordSize)
+
+	for i := range data {
+		data[i] = b.data[i] & other.data[i]
+	}
 	return &uncompressedBitmap{
 		data: data,
 	}
