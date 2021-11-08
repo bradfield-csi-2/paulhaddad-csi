@@ -47,6 +47,7 @@ int main(int argc, char *argv[]) {
 
       // we are the parent, so send test case to child and read results
       write(testfds[i][1], &n, sizeof(n));
+      printf("blocking\n");
       read(resultfds[i][0], &result, sizeof(result));
       printf("%15s says %ld %s prime\n", TESTS[i], n, result ? "is" : "IS NOT");
     }
